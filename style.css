@@ -1,0 +1,75 @@
+:root {
+    --md-ref-typeface-brand: 'Roboto';
+    --md-sys-color-primary: #006A6A;
+    --md-sys-color-surface: #F7FCFC;
+    --md-sys-color-on-surface: #191C1C;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --md-sys-color-primary: #4FD8D8;
+      --md-sys-color-surface: #191C1C;
+      --md-sys-color-on-surface: #E0E3E3;
+    }
+  }
+  
+  body {
+    font-family: var(--md-ref-typeface-brand);
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    margin: 0;
+    padding: 16px;
+  }
+  
+  .mdc-card {
+    background: color-mix(in srgb, var(--md-sys-color-surface) 95%, black);
+    border-radius: 28px;
+    padding: 24px;
+    margin: 16px 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  
+  .mdc-button {
+    background: var(--md-sys-color-primary);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 16px 24px;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .mdc-circular-progress {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: none;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  .mdc-snackbar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--md-sys-color-on-surface);
+    color: var(--md-sys-color-surface);
+    padding: 14px 24px;
+    border-radius: 28px;
+    display: none;
+  }
+  
+  @media (max-width: 600px) {
+    .mdc-card {
+      padding: 16px;
+      margin: 8px 0;
+    }
+  }
+  
