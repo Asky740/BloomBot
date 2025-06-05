@@ -16,8 +16,8 @@ SSID = "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
 PASSWORD = "abcd1234"
 
 # Telegram bot konfigurace pro notifikace
-TELEGRAM_BOT_TOKEN = "7539466048:AAGR6QX2EVD5BWtpou65S9fEtOeyMEOD7ok"  # Token od @BotFather
-TELEGRAM_CHAT_ID = "6913131296"    # ID chatu pro zasílání zpráv
+TELEGRAM_BOT_TOKEN = "token"  # Token od @BotFather
+TELEGRAM_CHAT_ID = "id"    # ID chatu pro zasílání zpráv
 
 # Nastavení automatického zalévání a čerpadla
 SOIL_THRESHOLD = 30000        # RAW hodnota - když je vyšší, spustí se zalévání
