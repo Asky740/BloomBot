@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BloomBot</title>
+    <!-- Import Google Fonts pro konzistentní typografii -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chart.js knihovna pro vytváření grafů -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* ========== GLOBÁLNÍ STYLY ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;  /* Zakázání označování textu */
+            font-family: 'Inter', sans-serif;  /* Jednotný font */
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1A1B19;  /* Tmavé pozadí */
+            color: #DBE8BE;  /* Světle zelená barva textu */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        /* ========== LOGO ========== */
+        .logo {
+            margin-top: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo img {
+            width: 393px;
+            height: 68px;
+        }
+        
+        /* ========== HLAVNÍ KONTEJNER ========== */
+        .main-container {
+            margin-top: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;  /* Mezery mezi sekcemi */
+        }
+        
+        /* ========== HLAVNÍ SEKCE S KVĚTINÁČEM ========== */
+        .main-section {
+            width: 800px;
+            height: 400px;
+            background-color: #282A24;  /* Tmavě zelené pozadí */
+            border-radius: 30px;
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.25),  /* Vnitřní světlý stín */
+                inset 0 -1px 1px rgba(0, 0, 0, 0.25);       /* Vnitřní tmavý stín */
+            position: relative;  /* Pro absolutní pozicování dětských elementů */
+        }
+        
+        /* Obrázek květináče */
+        .pot-image {
+            position: absolute;
+            top: 53px;
+            left: 280px;
+        }
+        
+        /* ========== STYLY PRO SENZORY ========== */
+        .sensor-info {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            font-weight: 700;
+            font-size: 42px;
+        }
+        
+        .sensor-value {
+            text-align: left;
+        }
+        
+        .sensor-icon {
+            width: 51px;
+            height: 51px;
+            margin-right: 10px;
+        }
+        
+        /* Pozice jednotlivých senzorů */
+        .air-humidity {
+            top: 88px;
+            left: 66px;
+        }
+        
+        .temperature {
+            top: 261px;
+            left: 66px;
+        }
+        
+        .soil-moisture {
+            top: 88px;
+            left: 610px;
+        }
+        
+        .water-level {
+            top: 261px;
+            left: 610px;
+        }
+        
+        /* Ikony pro vizuální prvky */
+        .water-level-icon {
+            position: absolute;
+            top: 241px;
+            left: 520px;
+            width: 48px;
+            height: 91px;
+        }
+        
+        .line-icon {
+            position: absolute;
+            top: 111px;
+            left: 433px;
+            width: 135px;
+            height: 5px;
+        }
+        
+        /* Dlouhá čára pro mobilní verzi - skrytá na desktopu */
+        .longline-icon {
+            display: none;
+        }
+        
+        /* ========== ŘÁDEK S OVLÁDACÍMI TLAČÍTKY ========== */
+        .second-row {
+            display: flex;
+            gap: 25px;
+        }
+        
+        /* Základní styl pro ovládací sekce */
+        .control-section {
+            width: 387px;
+            height: 150px;
+            background-color: #282A24;
+            border-radius: 30px;
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.25),
+                inset 0 -1px 1px rgba(0, 0, 0, 0.25);
+            position: relative;
+            cursor: pointer;  /* Ukazatel ruky při hoveru */
+            transition: all 0.3s ease;  /* Plynulé animace */
+        }
+        
+        /* Aktivní stav tlačítek (zapnuto) */
+        .control-section.active {
+            outline: 5px solid #DBE8BE;  /* Zelený rámeček */
+            outline-offset: -5px;
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.25),
+                inset 0 -1px 1px rgba(0, 0, 0, 0.25),
+                0 0 25px rgba(219, 232, 190, 0.25);  /* Světelný efekt */
+        }
+        
+        /* Text uvnitř ovládacích sekcí */
+        .control-text {
+            position: absolute;
+            top: 24px;
+            left: 28px;
+        }
+        
+        .control-title {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 5px;
+        }
+        
+        .control-subtitle {
+            font-size: 12px;
+            font-weight: 400;
+        }
+        
+        /* Ikony v ovládacích sekcích */
+        .control-icon {
+            position: absolute;
+            bottom: 10px;
+            right: 20px;
+            width: 51px;
+            height: 51px;
+        }
+        
+        /* ========== TLAČÍTKO ZALÍT ========== */
+        .water-section {
+            width: 800px;
+            height: 150px;
+            background-color: #3E452E;  /* Tmavší zelená */
+            border-radius: 30px;
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.25),
+                inset 0 -1px 1px rgba(0, 0, 0, 0.25);
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Aktivní stav tlačítka zalít (během zalévání) */
+        .water-section.active {
+            background-color: #131412;  /* Velmi tmavá */
+            color: #282A24;  /* Tmavý text */
+            box-shadow: 
+                inset 0 -1px 1px rgba(255, 255, 255, 0.25),
+                inset 0 1px 1px rgba(0, 0, 0, 0.25);
+        }
+        
+        .water-title {
+            font-size: 42px;
+            font-weight: 700;
+        }
+        
+        /* Text s časem posledního zalévání */
+        .last-watered {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);  /* Vycentrování */
+            font-size: 12px;
+            font-weight: 400;
+            text-align: center;
+        }
+        
+        /* ========== PATIČKA ========== */
+        .footer-text {
+            position: fixed;
+            bottom: 20px;
+            font-size: 12px;
+            color: #424242;
+        }
+        
+        /* ========== GRAFY ========== */
+        .charts-container {
+            position: fixed;
+            top: 50%;
+            left: calc(50% + 400px + 30px);  /* Pozice vpravo od hlavních sekcí */
+            transform: translateY(-50%);
+            width: calc(100vw - 50% - 400px - 60px);
+            max-width: 400px;
+            min-width: 300px;
+            height: 600px;
+            display: none;  /* Skryté ve výchozím stavu */
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .charts-container.visible {
+            display: flex;  /* Zobrazení při aktivaci */
+        }
+        
+        .chart-wrapper {
+            flex: 1;
+            border-radius: 10px;
+            padding: 15px;
+            height: calc(50% - 10px);
+        }
+        
+        .chart-title {
+            color: #DBE8BE;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .chart-canvas {
+            width: 100% !important;
+            height: calc(100% - 30px) !important;
+        }
+        
+        /* ========== MOBILNÍ VERZE - SKRYTÁ NA DESKTOPU ========== */
+        .mobile-auto-watering,
+        .mobile-water-section,
+        .mobile-graphs {
+            display: none;  /* Skryté na desktopu */
+        }
+        
+        /* ========== RESPONZIVNÍ DESIGN PRO MOBILY ========== */
+        @media (max-width: 1199px) {
+            /* Základní úpravy pro mobilní zobrazení */
+            body {
+                padding-bottom: 100px;  /* Prostor pro footer */
+            }
+            
+            /* Menší logo */
+            .logo {
+                margin-top: 30px;
+            }
+            
+            .logo img {
+                width: 250px;
+                height: 44px;
+            }
+            
+            /* Menší mezery */
+            .main-container {
+                margin-top: 30px;
+                gap: 25px;
+            }
+            
+            /* Menší hlavní sekce */
+            .main-section {
+                width: 350px;
+                height: 350px;
+            }
+            
+            /* Přepozicování elementů pro mobilní layout */
+            .pot-image {
+                top: 34px;
+                left: 40px;
+                width: 122px;
+                height: 181px;
+            }
+            
+            .line-icon {
+                top: 70px;
+                left: 136px;
+                width: 83px;
+                height: 3px;
+            }
+            
+            /* Zobrazení dlouhé čáry na mobilu */
+            .longline-icon {
+                display: block;
+                position: absolute;
+                top: 250px;
+                left: 20px;
+                width: 310px;
+                height: 3px;
+            }
+            
+            /* Přepozicování senzorů */
+            .soil-moisture {
+                top: 52px;
+                left: 242px;
+                font-size: 32px;
+            }
+            
+            .water-level-icon {
+                top: 151px;
+                left: 187px;
+                width: 29px;
+                height: 56px;
+            }
+            
+            .water-level {
+                top: 159px;
+                left: 242px;
+                font-size: 32px;
+            }
+            
+            /* Přepozicování teploty a vlhkosti vzduchu */
+            .temperature {
+                top: 289px;
+                left: 34px;
+                font-size: 24px;
+                display: flex;
+                align-items: center;
+            }
+            
+            .temperature .sensor-icon {
+                width: 35px;
+                height: 35px;
+                margin-right: 10px;
+                position: relative;
+                top: 0;
+                left: 0;
+            }
+            
+            .air-humidity {
+                top: 289px;
+                left: 189px;
+                font-size: 24px;
+                display: flex;
+                align-items: center;
+            }
+            
+            .air-humidity .sensor-icon {
+                width: 35px;
+                height: 35px;
+                margin-right: 10px;
+                position: relative;
+                top: 0;
+                left: 0;
+            }
+            
+            /* Skrytí desktop verzí tlačítek */
+            .second-row,
+            .water-section {
+                display: none;
+            }
+            
+            /* Zobrazení mobilních verzí tlačítek */
+            .mobile-auto-watering,
+            .mobile-water-section,
+            .mobile-graphs {
+                display: flex;
+                width: 350px;
+                height: 125px;
+                background-color: #282A24;
+                border-radius: 30px;
+                box-shadow: 
+                    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+                    inset 0 -1px 1px rgba(0, 0, 0, 0.25);
+                position: relative;
+                cursor: pointer;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s ease;
+            }
+            
+            /* Speciální barva pro mobilní tlačítko zalít */
+            .mobile-water-section {
+                background-color: #3E452E;
+            }
+            
+            /* Aktivní stavy mobilních tlačítek */
+            .mobile-auto-watering.active,
+            .mobile-graphs.active {
+                outline: 5px solid #DBE8BE;
+                outline-offset: -5px;
+                box-shadow: 
+                    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+                    inset 0 -1px 1px rgba(0, 0, 0, 0.25),
+                    0 0 25px rgba(219, 232, 190, 0.25);
+            }
+            
+            .mobile-water-section.active {
+                background-color: #131412;
+                color: #282A24;
+                box-shadow: 
+                    inset 0 -1px 1px rgba(255, 255, 255, 0.25),
+                    inset 0 1px 1px rgba(0, 0, 0, 0.25);
+            }
+            
+            /* Styly pro text v mobilních tlačítkách */
+            .mobile-control-text {
+                position: absolute;
+                top: 24px;
+                left: 28px;
+            }
+            
+            .mobile-control-title {
+                font-size: 24px;
+                font-weight: 400;
+                margin-bottom: 5px;
+            }
+            
+            .mobile-control-subtitle {
+                font-size: 12px;
+                font-weight: 400;
+            }
+            
+            .mobile-control-icon {
+                position: absolute;
+                bottom: 10px;
+                right: 20px;
+                width: 51px;
+                height: 51px;
+            }
+            
+            .mobile-water-title {
+                font-size: 28px;
+                font-weight: 700;
+                white-space: nowrap;  /* Zabránění zalomení textu */
+            }
+            
+            .mobile-last-watered {
+                position: absolute;
+                bottom: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 10px;
+                font-weight: 400;
+                text-align: center;
+                white-space: nowrap;
+            }
+            
+            /* Mobilní layout grafů */
+            .charts-container {
+                position: static;  /* Normální tok dokumentu */
+                transform: none;
+                width: 350px;
+                height: 700px;
+                display: none;
+                flex-direction: column;
+                gap: 25px;
+                margin-top: 25px;
+            }
+            
+            .charts-container.visible {
+                display: flex;
+            }
+            
+            .chart-wrapper {
+                width: 350px;
+                height: 350px;
+                padding: 0;
+                background: none;
+                border-radius: 0;
+                flex: none;  /* Pevná velikost */
+            }
+            
+            /* Mobilní footer */
+            .footer-text {
+                position: static;
+                margin-top: 50px;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ========== STRUKTURA HTML ========== -->
+    
+    <!-- Logo -->
+    <div class="logo">
+        <img src="img/bloombotlogo.svg" alt="BloomBot">
+    </div>
+    
+    <div class="main-container">
+        <!-- Hlavní sekce s květináčem a senzory -->
+        <div class="main-section">
+            <!-- Obrázek květináče (mění se podle vlhkosti půdy) -->
+            <img class="pot-image" id="pot-image" src="img/pot_happy.svg" alt="Květináč">
+            
+            <!-- Vizuální prvky - čáry -->
+            <img class="line-icon" src="img/line.svg" alt="Čára">
+            <img class="longline-icon" src="img/longline.svg" alt="Dlouhá čára">
+            
+            <!-- Senzor vlhkosti vzduchu -->
+            <div class="sensor-info air-humidity">
+                <img class="sensor-icon" src="img/humidity.svg" alt="Vlhkost">
+                <span class="sensor-value" id="humidity">--</span>
+            </div>
+            
+            <!-- Senzor teploty -->
+            <div class="sensor-info temperature">
+                <img class="sensor-icon" src="img/temp.svg" alt="Teplota">
+                <span class="sensor-value" id="temperature">--</span>
+            </div>
+            
+            <!-- Senzor vlhkosti půdy (bez ikony) -->
+            <div class="sensor-info soil-moisture">
+                <span class="sensor-value" id="soil-moisture">--</span>
+            </div>
+            
+            <!-- Senzor hladiny vody (bez ikony) -->
+            <div class="sensor-info water-level">
+                <span class="sensor-value" id="water-level">--</span>
+            </div>
+            
+            <!-- Ikona pro hladinu vody -->
+            <img class="water-level-icon" src="img/scale.svg" alt="Hladina">
+        </div>
+        
+        <!-- Desktop verze ovládacích tlačítek -->
+        <div class="second-row">
+            <!-- Tlačítko automatického zalévání -->
+            <div class="control-section active" id="auto-watering" onclick="toggleAutoWatering()">
+                <div class="control-text">
+                    <div class="control-title">Automatické zalévání</div>
+                    <div class="control-subtitle">Při vlhkosti nižší než 15%</div>
+                </div>
+                <img class="control-icon" id="auto-icon" src="img/on.svg" alt="Auto">
+            </div>
+            
+            <!-- Tlačítko grafů -->
+            <div class="control-section" id="graphs" onclick="toggleCharts()">
+                <div class="control-text">
+                    <div class="control-title">Grafy vývoje hodnot</div>
+                    <div class="control-subtitle">Teploty v místnosti a vlhkosti půdy</div>
+                </div>
+                <img class="control-icon" src="img/dots.svg" alt="Grafy">
+            </div>
+        </div>
+        
+        <!-- Desktop verze tlačítka zalít -->
+        <div class="water-section" id="water-button" onclick="waterPlant()">
+            <div class="water-title" id="water-title">Zalít</div>
+            <div class="last-watered">Naposledy zalito: <span id="last-watered-time">6.3.2024 12:34</span></div>
+        </div>
+        
+        <!-- Mobilní verze tlačítek (skryté na desktopu) -->
+        <div class="mobile-auto-watering active" id="mobile-auto-watering" onclick="toggleAutoWatering()">
+            <div class="mobile-control-text">
+                <div class="mobile-control-title">Automatické zalévání</div>
+                <div class="mobile-control-subtitle">Při vlhkosti nižší než 15%</div>
+            </div>
+            <img class="mobile-control-icon" id="mobile-auto-icon" src="img/on.svg" alt="Auto">
+        </div>
+        
+        <div class="mobile-water-section" id="mobile-water-button" onclick="waterPlant()">
+            <div class="mobile-water-title" id="mobile-water-title">Zalít</div>
+            <div class="mobile-last-watered">Naposledy zalito: <span id="mobile-last-watered-time">6.3.2024 12:34</span></div>
+        </div>
+        
+        <div class="mobile-graphs" id="mobile-graphs" onclick="toggleCharts()">
+            <div class="mobile-control-text">
+                <div class="mobile-control-title">Grafy vývoje hodnot</div>
+                <div class="mobile-control-subtitle">Teploty v místnosti a vlhkosti půdy</div>
+            </div>
+            <img class="mobile-control-icon" src="img/dots.svg" alt="Grafy">
+        </div>
+        
+        <!-- Kontejner pro grafy -->
+        <div class="charts-container" id="charts-container">
+            <div class="chart-wrapper">
+                <div class="chart-title">Teplota v místnosti</div>
+                <canvas id="temperature-chart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-wrapper">
+                <div class="chart-title">Vlhkost půdy</div>
+                <canvas id="soil-chart" class="chart-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer-text">© Adam Škývara 2025</div>
+    
+    <script>
+        // ========== JAVASCRIPT - GLOBÁLNÍ PROMĚNNÉ ==========
+        let autoWatering = true;          // Stav automatického zalévání
+        let pumpRunning = false;          // Stav čerpadla
+        let chartsVisible = false;        // Viditelnost grafů
+        
+        // Data pro grafy
+        let temperatureData = [];         // Pole hodnot teploty
+        let soilMoistureData = [];        // Pole hodnot vlhkosti půdy
+        let timeLabels = [];              // Pole časových štítků
+        let temperatureChart = null;      // Instance grafu teploty
+        let soilChart = null;             // Instance grafu vlhkosti půdy
+        let lastChartUpdate = 0;          // Čas poslední aktualizace grafu
+        
+        // Interval aktualizace grafů (30 minut)
+        const CHART_UPDATE_INTERVAL = 1800000;
+        
+        // Nastavení výchozího fontu pro Chart.js
+        Chart.defaults.font.family = 'Inter';
+        
+        // ========== INICIALIZACE GRAFŮ ==========
+        function initCharts() {
+            // Získání kontextů pro kreslení grafů
+            const tempCtx = document.getElementById('temperature-chart').getContext('2d');
+            const soilCtx = document.getElementById('soil-chart').getContext('2d');
+            
+            // Vytvoření grafu teploty
+            temperatureChart = new Chart(tempCtx, {
+                type: 'line',  // Čárový graf
+                data: {
+                    labels: timeLabels,  // Časové štítky na ose X
+                    datasets: [{
+                        data: temperatureData,  // Data teploty
+                        borderColor: '#DBE8BE',  // Barva čáry
+                        backgroundColor: 'rgba(219, 232, 190, 0.1)',  // Barva výplně
+                        borderWidth: 2,
+                        fill: true,  // Vyplnění pod čárou
+                        tension: 0.4,  // Zakřivení čáry
+                        pointRadius: 4,  // Velikost bodů
+                        pointHoverRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: { 
+                                color: '#DBE8BE',
+                                maxTicksLimit: 8,  // Max 8 štítků na ose X
+                                font: { family: 'Inter', size: 12 }
+                            },
+                            grid: { color: 'rgba(219, 232, 190, 0.2)' }  // Barva mřížky
+                        },
+                        y: {
+                            ticks: { 
+                                color: '#DBE8BE',
+                                font: { family: 'Inter', size: 12 }
+                            },
+                            grid: { color: 'rgba(219, 232, 190, 0.2)' },
+                            min: 0,   // Minimální hodnota osy Y
+                            max: 50   // Maximální hodnota osy Y
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },    // Skrytí legendy
+                        tooltip: { enabled: false }    // Vypnutí tooltipů
+                    }
+                }
+            });
+            
+            // Vytvoření grafu vlhkosti půdy (podobná konfigurace)
+            soilChart = new Chart(soilCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [{
+                        data: soilMoistureData,
+                        borderColor: '#3E452E',  // Tmavší zelená
+                        backgroundColor: 'rgba(62, 69, 46, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: { 
+                                color: '#DBE8BE',
+                                maxTicksLimit: 8,
+                                font: { family: 'Inter', size: 12 }
+                            },
+                            grid: { color: 'rgba(219, 232, 190, 0.2)' }
+                        },
+                        y: {
+                            ticks: { 
+                                color: '#DBE8BE',
+                                font: { family: 'Inter', size: 12 }
+                            },
+                            grid: { color: 'rgba(219, 232, 190, 0.2)' },
+                            min: 0,    // 0%
+                            max: 100   // 100%
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+        
+        // ========== OVLÁDÁNÍ GRAFŮ ==========
+        function toggleCharts() {
+            // Přepnutí viditelnosti grafů
+            chartsVisible = !chartsVisible;
+            
+            // Získání elementů
+            const chartsContainer = document.getElementById('charts-container');
+            const graphsButton = document.getElementById('graphs');
+            const mobileGraphsButton = document.getElementById('mobile-graphs');
+            
+            if (chartsVisible) {
+                // Zobrazení grafů
+                chartsContainer.classList.add('visible');
+                graphsButton.classList.add('active');
+                mobileGraphsButton.classList.add('active');
+                
+                // Inicializace grafů při prvním zobrazení
+                if (!temperatureChart) {
+                    initCharts();
+                }
+            } else {
+                // Skrytí grafů
+                chartsContainer.classList.remove('visible');
+                graphsButton.classList.remove('active');
+                mobileGraphsButton.classList.remove('active');
+            }
+        }
+        
+        // ========== AKTUALIZACE DAT GRAFŮ ==========
+        function updateCharts(temperature, soilMoisture) {
+            // Kontrola, zda jsou grafy zobrazené a inicializované
+            if (!chartsVisible || !temperatureChart) return;
+            
+            const now = Date.now();
+            
+            // Aktualizace pouze každých 30 minut
+            if (now - lastChartUpdate < CHART_UPDATE_INTERVAL && timeLabels.length > 0) {
+                return;
+            }
+            
+            lastChartUpdate = now;
+            
+            // Vytvoření časového štítku
+            const timeString = new Date().toLocaleTimeString('cs-CZ', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            // Přidání nových dat
+            timeLabels.push(timeString);
+            temperatureData.push(temperature);
+            soilMoistureData.push(soilMoisture);
+            
+            // Omezení na posledních 24 bodů (12 hodin při 30min intervalech)
+            if (timeLabels.length > 24) {
+                timeLabels.shift();        // Odstranění nejstaršího štítku
+                temperatureData.shift();   // Odstranění nejstarší teploty
+                soilMoistureData.shift();  // Odstranění nejstarší vlhkosti
+            }
+            
+            // Aktualizace grafů
+            temperatureChart.update();
+            soilChart.update();
+        }
+        
+        // ========== NAČÍTÁNÍ DAT ZE SERVERU ==========
+        async function loadSensorData() {
+            try {
+                // AJAX požadavek na server pro získání dat
+                const response = await fetch('/api/sensors');
+                const data = await response.json();
+                
+                // Zpracování dat (fallback hodnoty pokud senzor nefunguje)
+                const temp = data.temperature !== null ? data.temperature : 20;
+                const hum = data.humidity !== null ? data.humidity : 50;
+                const soil = data.soil_moisture;
+                const water = data.water_level;
+                
+                // Aktualizace zobrazených hodnot v HTML
+                document.getElementById('temperature').textContent = `${temp}°C`;
+                document.getElementById('humidity').textContent = `${hum}%`;
+                document.getElementById('soil-moisture').textContent = `${soil.toFixed(0)}%`;
+                document.getElementById('water-level').textContent = `${water.toFixed(0)}%`;
+                
+                // Aktualizace času posledního zalévání (desktop i mobil)
+                if (data.last_watering_time) {
+                    document.getElementById('last-watered-time').textContent = data.last_watering_time;
+                    document.getElementById('mobile-last-watered-time').textContent = data.last_watering_time;
+                }
+                
+                // Aktualizace grafů
+                updateCharts(temp, soil);
+                
+                // Změna obrázku květináče podle vlhkosti půdy
+                const potImage = document.getElementById('pot-image');
+                if (soil < 16) {
+                    potImage.src = 'img/pot_sad.svg';    // Smutný květináč
+                } else {
+                    potImage.src = 'img/pot_happy.svg';  // Šťastný květináč
+                }
+                
+                // Aktualizace globálních stavů
+                pumpRunning = data.pump_running;
+                autoWatering = data.auto_watering;
+                
+                // Aktualizace zobrazení tlačítek
+                updateAutoWateringDisplay();
+                updateWaterButtonDisplay();
+                
+            } catch (error) {
+                console.error('Chyba při načítání dat:', error);
+            }
+        }
+        
+        // ========== OVLÁDÁNÍ AUTOMATICKÉHO ZALÉVÁNÍ ==========
+        async function toggleAutoWatering() {
+            try {
+                // Odeslání požadavku na server pro přepnutí auto režimu
+                await fetch('/toggle_auto', { method: 'POST' });
+                autoWatering = !autoWatering;  // Přepnutí lokálního stavu
+                updateAutoWateringDisplay();   // Aktualizace zobrazení
+            } catch (error) {
+                console.error('Chyba při přepínání auto režimu:', error);
+            }
+        }
+        
+        // ========== AKTUALIZACE ZOBRAZENÍ AUTO ZALÉVÁNÍ ==========
+        function updateAutoWateringDisplay() {
+            // Získání elementů (desktop i mobil)
+            const autoSection = document.getElementById('auto-watering');
+            const mobileAutoSection = document.getElementById('mobile-auto-watering');
+            const autoIcon = document.getElementById('auto-icon');
+            const mobileAutoIcon = document.getElementById('mobile-auto-icon');
+            
+            if (autoWatering) {
+                // Zapnutý stav - zelený rámeček a ikona ON
+                autoSection.classList.add('active');
+                mobileAutoSection.classList.add('active');
+                autoIcon.src = 'img/on.svg';
+                mobileAutoIcon.src = 'img/on.svg';
+            } else {
+                // Vypnutý stav - bez rámečku a ikona OFF
+                autoSection.classList.remove('active');
+                mobileAutoSection.classList.remove('active');
+                autoIcon.src = 'img/off.svg';
+                mobileAutoIcon.src = 'img/off.svg';
+            }
+        }
+        
+        // ========== AKTUALIZACE ZOBRAZENÍ TLAČÍTKA ZALÍT ==========
+        function updateWaterButtonDisplay() {
+            const waterTitle = document.getElementById('water-title');
+            const mobileWaterTitle = document.getElementById('mobile-water-title');
+            
+            if (pumpRunning) {
+                // Během zalévání
+                waterTitle.textContent = 'Zalévání...';
+                mobileWaterTitle.textContent = 'Zalévání...';
+            } else {
+                // Normální stav
+                waterTitle.textContent = 'Zalít';
+                mobileWaterTitle.textContent = 'Zalít';
+            }
+        }
+        
+        // ========== MANUÁLNÍ ZALÉVÁNÍ ==========
+        async function waterPlant() {
+            // Zabránění spuštění pokud čerpadlo už běží
+            if (pumpRunning) return;
+            
+            // Získání elementů
+            const waterButton = document.getElementById('water-button');
+            const mobileWaterButton = document.getElementById('mobile-water-button');
+            const waterTitle = document.getElementById('water-title');
+            const mobileWaterTitle = document.getElementById('mobile-water-title');
+            
+            // Aktivace tlačítek (vizuální feedback)
+            waterButton.classList.add('active');
+            mobileWaterButton.classList.add('active');
+            waterTitle.textContent = 'Zalévání...';
+            mobileWaterTitle.textContent = 'Zalévání...';
+            
+            try {
+                // Odeslání požadavku na server pro spuštění čerpadla
+                await fetch('/water', { method: 'POST' });
+                
+                // Simulace doby běhu čerpadla (5 sekund)
+                setTimeout(() => {
+                    // Deaktivace tlačítek
+                    waterButton.classList.remove('active');
+                    mobileWaterButton.classList.remove('active');
+                    waterTitle.textContent = 'Zalít';
+                    mobileWaterTitle.textContent = 'Zalít';
+                }, 5000);
+                
+            } catch (error) {
+                console.error('Chyba při zalévání:', error);
+                // Okamžitá deaktivace při chybě
+                waterButton.classList.remove('active');
+                mobileWaterButton.classList.remove('active');
+                waterTitle.textContent = 'Zalít';
+                mobileWaterTitle.textContent = 'Zalít';
+            }
+        }
+        
+        // ========== AUTOMATICKÉ AKTUALIZACE ==========
+        // Načítání dat ze serveru každé 3 sekundy
+        setInterval(loadSensorData, 3000);
+        
+        // Počáteční načtení dat při načtení stránky
+        loadSensorData();
+    </script>
+</body>
+</html>
