@@ -31,10 +31,17 @@ SOIL_WET_VALUE = 20000        # RAW hodnota pro úplně mokrou půdu (100% vlhko
 
 # Kalibrace senzoru hladiny vody
 WATER_EMPTY_VALUE = 0         # RAW hodnota pro prázdnou nádrž
-WATER_FULL_VALUE = 65535      # RAW hodnota pro plnou nádrž
+WATER_FULL_VALUE = 40000      # RAW hodnota pro plnou nádrž
 
 # Časové pásmo - Praha (CEST = UTC+2 v létě)
 TIMEZONE_OFFSET = 7200        # Offset v sekundách
+
+# Název souboru pro ukládání času posledního zalévání do flash paměti
+LAST_WATERING_FILE = "last_watering.txt"
+
+# Nastavení upozornění na nízkou hladinu vody
+LOW_WATER_THRESHOLD = 10      # Procenta - pod touto hodnotou se posílá upozornění
+ALERT_INTERVAL = 1800         # 30 minut v sekundách - interval mezi upozorněními
 
 # ========== HARDWARE KONFIGURACE ==========
 # Inicializace pinů pro senzory a čerpadlo
@@ -51,6 +58,42 @@ pump_running = False          # Stav čerpadla (běží/neběží)
 auto_watering = True         # Stav automatického zalévání (zapnuto/vypnuto)
 last_watering_time = None    # Čas posledního zalévání
 time_synced = False          # Zda je čas synchronizován přes NTP
+last_low_water_alert = 0     # Čas posledního upozornění na nízkou hladinu vody
+
+def save_last_watering_time(watering_time):
+    """
+    Uloží čas posledního zalévání do souboru ve flash paměti
+    Args:
+        watering_time (str): Čas zalévání ve formátu DD.MM.YYYY HH:MM
+    """
+    try:
+        # Zápis času do souboru ve flash paměti Raspberry Pi Pico
+        with open(LAST_WATERING_FILE, "w") as f:
+            f.write(watering_time)
+        print(f"Last watering time saved to flash: {watering_time}")
+    except Exception as e:
+        print(f"Failed to save last watering time: {e}")
+
+def load_last_watering_time():
+    """
+    Načte čas posledního zalévání ze souboru ve flash paměti
+    Returns:
+        str: Čas posledního zalévání nebo výchozí hodnotu
+    """
+    try:
+        # Čtení času ze souboru ve flash paměti
+        with open(LAST_WATERING_FILE, "r") as f:
+            saved_time = f.read().strip()
+        print(f"Last watering time loaded from flash: {saved_time}")
+        return saved_time
+    except OSError:
+        # Soubor neexistuje - první spuštění systému
+        default_time = "Nikdy"
+        print("No saved watering time found, using default")
+        return default_time
+    except Exception as e:
+        print(f"Failed to load last watering time: {e}")
+        return "Chyba načtení"
 
 def send_telegram_message(message):
     """
@@ -140,6 +183,40 @@ Cas: {current_time}
 Zkontrolujte prosim system."""
     
     send_telegram_message(message)
+
+def notify_low_water(water_level_percent):
+    """
+    Pošle upozornění na nízkou hladinu vody
+    Args:
+        water_level_percent (float): Aktuální hladina vody v procentech
+    """
+    current_time = get_current_time_str()
+    message = f"""Upozorneni: Nizka hladina vody!
+
+Aktualni hladina: {water_level_percent:.1f}%
+Cas: {current_time}
+
+Doplnte vodu do nadrze."""
+    
+    send_telegram_message(message)
+
+def check_water_level_alert(water_level_percent):
+    """
+    Kontroluje hladinu vody a posílá upozornění každých 30 minut pokud je nízká
+    Args:
+        water_level_percent (float): Aktuální hladina vody v procentech
+    """
+    global last_low_water_alert
+    
+    # Kontrola, zda je hladina vody pod prahem
+    if water_level_percent < LOW_WATER_THRESHOLD:
+        current_time = time.time()
+        
+        # Kontrola, zda uplynulo alespoň 30 minut od posledního upozornění
+        if current_time - last_low_water_alert > ALERT_INTERVAL:
+            print(f"Low water alert triggered! Water level: {water_level_percent:.1f}%")
+            notify_low_water(water_level_percent)
+            last_low_water_alert = current_time
 
 def sync_time():
     """
@@ -269,8 +346,10 @@ def start_pump(duration):
     pump_running = True
     relay_pin.value(1)  # Zapnutí relé (čerpadlo ON)
     
-    # Aktualizace času posledního zalévání
+    # Aktualizace času posledního zalévání a uložení do flash paměti
     last_watering_time = get_current_time_str()
+    save_last_watering_time(last_watering_time)  # Trvalé uložení do souboru
+    
     print(f"Pump started for {duration}s - Last watering time updated: {last_watering_time}")
     
     # Čekání po dobu běhu čerpadla
@@ -424,6 +503,10 @@ def main():
         time.sleep(2)
         sync_time()
         
+        # Načtení času posledního zalévání z flash paměti při startu
+        last_watering_time = load_last_watering_time()
+        print(f"Loaded last watering time: {last_watering_time}")
+        
         # Nastavení webového serveru
         addr = socket.getaddrinfo(ip, 80)[0][-1]  # Adresa pro port 80
         s = socket.socket()  # Vytvoření socketu
@@ -437,10 +520,6 @@ def main():
         
         # Odeslání notifikace o spuštění
         notify_startup(ip)
-        
-        # Inicializace času posledního zalévání
-        last_watering_time = get_current_time_str()
-        print(f"Initial last watering time set to: {last_watering_time}")
         
         # Inicializace časovačů pro různé úkoly
         last_auto_check = time.time()      # Poslední kontrola auto zalévání
@@ -462,6 +541,10 @@ def main():
                 if current_time - last_auto_check > AUTO_CHECK_INTERVAL:
                     check_auto_watering()
                     last_auto_check = current_time
+                
+                # Kontrola hladiny vody a upozornění (při každém cyklu)
+                sensor_data = read_sensors()
+                check_water_level_alert(sensor_data['water_level'])
                 
                 # Garbage collection každé 2 minuty
                 if current_time - last_gc > 120:
